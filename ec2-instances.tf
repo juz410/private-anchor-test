@@ -118,7 +118,7 @@ EOF
 locals {
   ec2_servers = {
     uat_server = {
-      name_suffix        = "uat-server"
+      name_suffix        = "uat-01"
       ami                = data.aws_ami.amazon_linux.id
       instance_type      = "c7i.xlarge"
       subnet_id          = module.vpc.private_subnet_a_id
@@ -153,7 +153,7 @@ locals {
     }
 
     all_in_one_server = {
-      name_suffix            = "all-in-one-server"
+      name_suffix            = "all-01"
       ami                    = data.aws_ami.amazon_linux.id
       instance_type          = "c7i.2xlarge"
       subnet_id              = module.vpc.private_subnet_a_id

@@ -105,7 +105,7 @@ module "ec2_instances" {
   for_each = local.ec2_servers
   source   = "./modules/ec2-instances"
 
-  name                 = "${local.resource_name_prefix}-ec2-${each.value.name_suffix}"
+  name                 = "${local.resource_name_prefix}-${each.value.name_suffix}"
   ami                  = each.value.ami
   instance_type        = each.value.instance_type
   subnet_id            = each.value.subnet_id
