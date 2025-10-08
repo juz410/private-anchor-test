@@ -13,6 +13,10 @@ output "main_vpc_id" {
   value = aws_vpc.main_vpc.id
 }
 
+output "main_vpc_name" {
+  value = aws_vpc.main_vpc.tags_all["Name"]
+}
+
 output "public_subnet_a_id" {
   value = aws_subnet.public_subnet_a.id
 }

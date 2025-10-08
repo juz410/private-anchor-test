@@ -35,6 +35,18 @@ module "vpc" {
   )
 }
 
+module "vpc_flowlogs"{
+  source = "./modules/vpc-flowlogs"
+  vpc_id = module.vpc.main_vpc_id
+  vpc_name = module.vpc.main_vpc_name
+  flow_logs_kms_key_id = data.aws_kms_key.cloudwatch_logs_cmk.arn
+    resource_name_prefix = local.resource_name_prefix
+
+  tags = merge(
+    local.standard_tags
+  )
+}
+
 ###############################################
 # Security Groups Module
 ###############################################

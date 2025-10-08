@@ -65,16 +65,50 @@ systemctl restart amazon-cloudwatch-agent
 EOF
 
   ebs_userdata = <<-EOF
-echo "Preparing and mounting extra EBS volume..."
-DEV="/dev/nvme1n1"
-if [ -b "$DEV" ]; then
-  mkfs.xfs -f "$DEV" || mkfs.ext4 -F "$DEV"
-  mkdir -p /DATA
-  echo "$DEV /DATA xfs defaults,nofail 0 2" >> /etc/fstab || \
-  echo "$DEV /DATA ext4 defaults,nofail 0 2" >> /etc/fstab
-  mount -a
+echo "[EBS-SETUP] Preparing and mounting extra EBS volume..." | tee -a /var/log/ebs-setup.log
+
+# Find the non-root EBS device dynamically
+ROOT_DEVICE=$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//')
+DATA_DEVICE=$(lsblk -dn -o NAME | grep -E '^nvme' | while read dev; do
+  DEV_PATH="/dev/$dev"
+  if [ "$DEV_PATH" != "$ROOT_DEVICE" ]; then
+    echo "$DEV_PATH"
+    break
+  fi
+done)
+
+if [ -z "$DATA_DEVICE" ]; then
+  echo "[EBS-SETUP] ERROR: No secondary EBS device found!" | tee -a /var/log/ebs-setup.log
+  exit 1
+fi
+
+echo "[EBS-SETUP] Found data device: $DATA_DEVICE" | tee -a /var/log/ebs-setup.log
+
+# Wait for device readiness
+for i in {1..10}; do
+  if [ -b "$DATA_DEVICE" ]; then
+    echo "[EBS-SETUP] Device $DATA_DEVICE detected (attempt $i)" | tee -a /var/log/ebs-setup.log
+    mkfs.xfs -f "$DATA_DEVICE" 2>>/var/log/ebs-setup.log || mkfs.ext4 -F "$DATA_DEVICE" 2>>/var/log/ebs-setup.log
+    mkdir -p /DATA
+    echo "$DATA_DEVICE /DATA xfs defaults,nofail 0 2" >> /etc/fstab || \
+    echo "$DATA_DEVICE /DATA ext4 defaults,nofail 0 2" >> /etc/fstab
+    mount -a
+    echo "[EBS-SETUP] Successfully mounted $DATA_DEVICE to /DATA" | tee -a /var/log/ebs-setup.log
+    break
+  else
+    echo "[EBS-SETUP] Device $DATA_DEVICE not found (attempt $i), retrying in 5 seconds..." | tee -a /var/log/ebs-setup.log
+    sleep 5
+  fi
+done
+
+# Verify
+if mountpoint -q /DATA; then
+  echo "[EBS-SETUP] Mount verification successful: /DATA is mounted." | tee -a /var/log/ebs-setup.log
+else
+  echo "[EBS-SETUP] WARNING: /DATA not mounted after setup. Check /var/log/ebs-setup.log for details." | tee -a /var/log/ebs-setup.log
 fi
 EOF
+
 }
 
 
@@ -106,7 +140,7 @@ locals {
         }
       ]
       backup_8hourly  = false
-      backup_12hourly  = true
+      backup_12hourly  = false
       backup_daily   = false
       backup_weekly  = false
       backup_monthly = false
